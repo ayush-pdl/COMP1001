@@ -16,7 +16,7 @@ void openfile(const char* filename, FILE** finput);
 int getint(FILE* fp);
 void read_image_dimensions(const char* filename);
 void cleanup_memory(void);
-int manage_memory(int required_size);
+
 
 //CRITICAL POINT: images' paths - You need to change these paths
 #define IN "C:\\Users\\acer\\Desktop\\input_images\\"
@@ -109,9 +109,9 @@ int main() {
 }
 
 void cleanup_memory() {
-	free (frame1);
-	free (filt);
-	free (gradient);
+	free(frame1);
+	free(filt);
+	free(gradient);
 }
 
 
