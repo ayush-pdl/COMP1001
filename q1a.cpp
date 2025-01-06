@@ -14,10 +14,10 @@ void check_correctness();
 
 #define EPSILON 1e-5 //relative error margin
 
-#define N 1024 //input size
+#define N 256 //input size
 float A[N][N], B[N][N], C[N][N], C_vec[N][N];
 
-#define TIMES_TO_RUN 10 //how many times the function will run. If the ex_time you get is lower than 2 seconds, then increase this value accordingly
+#define TIMES_TO_RUN 1 //how many times the function will run. If the ex_time you get is lower than 2 seconds, then increase this value accordingly
 
 
 
@@ -43,20 +43,20 @@ int main() {
 	//printf(" clock() method: %ldms\n", (end_1 - start_1) / (CLOCKS_PER_SEC / 1000));//print the ex.time
 	
 
-	//start_1 = omp_get_wtime(); //start the timer for vectorized j loop
+	start_1 = omp_get_wtime(); //start the timer for vectorized j loop
 	//start_1 = clock(); //start the timer 
-	//q1_vec_j();
-	//end_1 = omp_get_wtime(); //end the timer 
+	q1_vec_j();
+	end_1 = omp_get_wtime(); //end the timer 
 	//end_1 = clock(); //end the timer
-	//printf("Vectorized q1_vec_j time in seconds: %f\n", end_1 - start_1); //print the ex.time
+	printf("Vectorized q1_vec_j time in seconds: %f\n", end_1 - start_1); //print the ex.time
 	//printf(" clock() method: %ldms\n", (end_1 - start_1) / (CLOCKS_PER_SEC / 1000));//print the ex.time
 	
-	//start_1 = omp_get_wtime(); //start the timer for vectorized k loop
+	start_1 = omp_get_wtime(); //start the timer for vectorized k loop
 	//start_1 = clock(); //start the timer
-	//q1_vec_k();
-	//end_1 = omp_get_wtime(); //end the timer 
+	q1_vec_k();
+	end_1 = omp_get_wtime(); //end the timer 
 	//end_1 = clock(); //end the timer
-	//printf("Vectorized q1_vec_k time in seconds: %f\n", end_1 - start_1); //print the ex.time
+	printf("Vectorized q1_vec_k time in seconds: %f\n", end_1 - start_1); //print the ex.time
 	//printf(" clock() method: %ldms\n", (end_1 - start_1) / (CLOCKS_PER_SEC / 1000));//print the ex.time
 	
 	
@@ -104,7 +104,6 @@ void q1() {
 			}
 		}
 	}
-
 }
 
 void q1_vec_j() { //task_B
@@ -122,48 +121,51 @@ void q1_vec_j() { //task_B
 	}
 }
 
-	void q1_vec_k() { //task_C
-		float** B_transposed = (float**)malloc(N * sizeof(float*));
-		for (int i = 0; i < N; i++) {
-			B_transposed[i] = (float*)malloc(N * sizeof(float));
-		}
-
-		// transposing B for better memory access
-		for (int i = 0; i < N; i++) {
-			for (int j = 0; j < N; j++) {
-				B_transposed[i][j] = B[j][i];
-			}
-		}
-
-		for (int i = 0; i < N; i++) {
-			for (int j = 0; j < N; j++) {
-				__m256 c_vec = _mm256_setzero_ps(); // initializing the result vector to zero
-
-				for (int k = 0; k < N; k += 4) { // processing 8 elements of B_transposed at a time
-					__m256 a_vec = _mm256_loadu_ps(&A[i][k]); //loading 8 elements from A[i]
-					__m256 b_vec = _mm256_loadu_ps(&B_transposed[j][k]); // loading 8 elements from transposed B
-					c_vec = _mm256_fmadd_ps(a_vec, b_vec, c_vec); // multiplying and adding
-				}
-
-				c_vec = _mm256_hadd_ps(c_vec, c_vec); // horizontal addition
-				c_vec = _mm256_hadd_ps(c_vec, c_vec);
-
-				_mm256_storeu_ps(&C_vec[i][j], c_vec); // storing the result back to C_vec
-			}
-		}
-
-		// free the allocated memory
-		for (int i = 0; i < N; i++) {
-			free(B_transposed[i]);
-		}
-		free(B_transposed);
+void q1_vec_k() { //task_C
+	// Allocate memory for B_transposed on the heap
+	float** B_transposed = (float**)malloc(N * sizeof(float*));
+	for (int i = 0; i < N; i++) {
+		B_transposed[i] = (float*)malloc(N * sizeof(float));
 	}
+
+	// Transposing B for better memory access
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			B_transposed[i][j] = B[j][i];
+		}
+	}
+
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			__m256 c_vec = _mm256_setzero_ps(); // initializing the result vector to zero
+
+			for (int k = 0; k < N; k += 4) { // processing 8 elements of B_transposed at a time
+				__m256 a_vec = _mm256_loadu_ps(&A[i][k]); //loading 8 elements from A[i]
+				__m256 b_vec = _mm256_loadu_ps(&B_transposed[j][k]); // loading 8 elements from transposed B
+				c_vec = _mm256_fmadd_ps(a_vec, b_vec, c_vec); // multiplying and adding
+			}
+
+			c_vec = _mm256_hadd_ps(c_vec, c_vec); // horizontal addition
+			c_vec = _mm256_hadd_ps(c_vec, c_vec);
+
+			_mm256_storeu_ps(&C_vec[i][j], c_vec); // storing the result back to C_vec
+		}
+	}
+
+	// Free the allocated memory
+	for (int i = 0; i < N; i++) {
+		free(B_transposed[i]);
+	}
+	free(B_transposed);
+}
+
+
 
 
 
 void check_correctness() {
 	int correct = 1;
-	const float epsilon = 1e-5f; // tolerance for floating-point comparison
+	const float epsilon = 1e-5f; 
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			if (fabs(C[i][j] - C_vec[i][j])/fabs(C[i][j]) > epsilon) {
